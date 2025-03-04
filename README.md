@@ -96,8 +96,8 @@ The application uses unidentifiable global keyboard shortcuts that won't be dete
 1. Clone the repository:
 
 ```bash
-git clone https://github.com/ibttf/interview-coder-v1.git
-cd interview-coder-v1
+git clone https://github.com/ibttf/interview-coder.git
+cd interview-coder
 ```
 
 2. Install dependencies:
