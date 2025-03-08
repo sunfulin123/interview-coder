@@ -72,4 +72,5 @@ interface Window {
   __CREDITS__: number
   __LANGUAGE__: string
   __IS_INITIALIZED__: boolean
+  __AUTH_TOKEN__: string
 }

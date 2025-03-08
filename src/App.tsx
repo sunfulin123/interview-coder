@@ -493,10 +493,16 @@ function AppContent({ isInitialized }: { isInitialized: boolean }) {
       data: { subscription }
     } = supabase.auth.onAuthStateChange((event, session) => {
       setUser(session?.user ?? null)
+      // Set the auth token in the window object
+      window.__AUTH_TOKEN__ = session?.access_token || null
       setLoading(false)
     })
 
-    return () => subscription.unsubscribe()
+    return () => {
+      subscription.unsubscribe()
+      // Clear the token on cleanup
+      window.__AUTH_TOKEN__ = null
+    }
   }, [])
 
   // Check subscription and credits status whenever user changes

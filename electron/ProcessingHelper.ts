@@ -93,6 +93,28 @@ export class ProcessingHelper {
     }
   }
 
+  private async getAuthToken(): Promise<string | null> {
+    const mainWindow = this.deps.getMainWindow()
+    if (!mainWindow) return null
+
+    try {
+      await this.waitForInitialization(mainWindow)
+      const token = await mainWindow.webContents.executeJavaScript(
+        "window.__AUTH_TOKEN__"
+      )
+
+      if (!token) {
+        console.warn("No auth token found")
+        return null
+      }
+
+      return token
+    } catch (error) {
+      console.error("Error getting auth token:", error)
+      return null
+    }
+  }
+
   public async processScreenshots(): Promise<void> {
     const mainWindow = this.deps.getMainWindow()
     if (!mainWindow) return
@@ -266,6 +288,14 @@ export class ProcessingHelper {
 
         // First API call - extract problem info
         try {
+          const token = await this.getAuthToken()
+          if (!token) {
+            return {
+              success: false,
+              error: "Authentication required. Please log in."
+            }
+          }
+
           const extractResponse = await axios.post(
             `${API_BASE_URL}/api/extract`,
             { imageDataList, language },
@@ -277,7 +307,8 @@ export class ProcessingHelper {
               },
               maxRedirects: 5,
               headers: {
-                "Content-Type": "application/json"
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${token}`
               }
             }
           )
@@ -331,6 +362,32 @@ export class ProcessingHelper {
             error.response?.data?.error &&
             typeof error.response.data.error === "string"
           ) {
+            if (error.response.status === 401) {
+              // Clear any stored session if auth fails
+              await mainWindow?.webContents.executeJavaScript(
+                "window.supabase?.auth?.signOut()"
+              )
+              return {
+                success: false,
+                error: "Your session has expired. Please sign in again."
+              }
+            }
+            if (error.response.data.error === "No token provided") {
+              return {
+                success: false,
+                error: "Please sign in to continue."
+              }
+            }
+            if (error.response.data.error === "Invalid token") {
+              // Clear any stored session if token is invalid
+              await mainWindow?.webContents.executeJavaScript(
+                "window.supabase?.auth?.signOut()"
+              )
+              return {
+                success: false,
+                error: "Your session has expired. Please sign in again."
+              }
+            }
             if (error.response.data.error.includes("Operation timed out")) {
               throw new Error(
                 "Operation timed out after 1 minute. Please try again."
@@ -375,9 +432,17 @@ export class ProcessingHelper {
     try {
       const problemInfo = this.deps.getProblemInfo()
       const language = await this.getLanguage()
+      const token = await this.getAuthToken()
 
       if (!problemInfo) {
         throw new Error("No problem info available")
+      }
+
+      if (!token) {
+        return {
+          success: false,
+          error: "Authentication required. Please log in."
+        }
       }
 
       const response = await axios.post(
@@ -391,7 +456,8 @@ export class ProcessingHelper {
           },
           maxRedirects: 5,
           headers: {
-            "Content-Type": "application/json"
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`
           }
         }
       )
@@ -419,6 +485,53 @@ export class ProcessingHelper {
         return {
           success: false,
           error: "Request timed out. Please try again."
+        }
+      }
+
+      if (error.response?.status === 401) {
+        if (mainWindow) {
+          // Clear any stored session if auth fails
+          await mainWindow.webContents.executeJavaScript(
+            "window.supabase?.auth?.signOut()"
+          )
+          mainWindow.webContents.send(
+            this.deps.PROCESSING_EVENTS.INITIAL_SOLUTION_ERROR,
+            "Your session has expired. Please sign in again."
+          )
+        }
+        return {
+          success: false,
+          error: "Your session has expired. Please sign in again."
+        }
+      }
+
+      if (error.response?.data?.error === "No token provided") {
+        if (mainWindow) {
+          mainWindow.webContents.send(
+            this.deps.PROCESSING_EVENTS.INITIAL_SOLUTION_ERROR,
+            "Please sign in to continue."
+          )
+        }
+        return {
+          success: false,
+          error: "Please sign in to continue."
+        }
+      }
+
+      if (error.response?.data?.error === "Invalid token") {
+        if (mainWindow) {
+          // Clear any stored session if token is invalid
+          await mainWindow.webContents.executeJavaScript(
+            "window.supabase?.auth?.signOut()"
+          )
+          mainWindow.webContents.send(
+            this.deps.PROCESSING_EVENTS.INITIAL_SOLUTION_ERROR,
+            "Your session has expired. Please sign in again."
+          )
+        }
+        return {
+          success: false,
+          error: "Your session has expired. Please sign in again."
         }
       }
 
@@ -456,9 +569,17 @@ export class ProcessingHelper {
       const imageDataList = screenshots.map((screenshot) => screenshot.data)
       const problemInfo = this.deps.getProblemInfo()
       const language = await this.getLanguage()
+      const token = await this.getAuthToken()
 
       if (!problemInfo) {
         throw new Error("No problem info available")
+      }
+
+      if (!token) {
+        return {
+          success: false,
+          error: "Authentication required. Please log in."
+        }
       }
 
       const response = await axios.post(
@@ -472,7 +593,8 @@ export class ProcessingHelper {
           },
           maxRedirects: 5,
           headers: {
-            "Content-Type": "application/json"
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`
           }
         }
       )
@@ -486,6 +608,53 @@ export class ProcessingHelper {
         return {
           success: false,
           error: "Processing was canceled by the user."
+        }
+      }
+
+      if (error.response?.status === 401) {
+        if (mainWindow) {
+          // Clear any stored session if auth fails
+          await mainWindow.webContents.executeJavaScript(
+            "window.supabase?.auth?.signOut()"
+          )
+          mainWindow.webContents.send(
+            this.deps.PROCESSING_EVENTS.DEBUG_ERROR,
+            "Your session has expired. Please sign in again."
+          )
+        }
+        return {
+          success: false,
+          error: "Your session has expired. Please sign in again."
+        }
+      }
+
+      if (error.response?.data?.error === "No token provided") {
+        if (mainWindow) {
+          mainWindow.webContents.send(
+            this.deps.PROCESSING_EVENTS.DEBUG_ERROR,
+            "Please sign in to continue."
+          )
+        }
+        return {
+          success: false,
+          error: "Please sign in to continue."
+        }
+      }
+
+      if (error.response?.data?.error === "Invalid token") {
+        if (mainWindow) {
+          // Clear any stored session if token is invalid
+          await mainWindow.webContents.executeJavaScript(
+            "window.supabase?.auth?.signOut()"
+          )
+          mainWindow.webContents.send(
+            this.deps.PROCESSING_EVENTS.DEBUG_ERROR,
+            "Your session has expired. Please sign in again."
+          )
+        }
+        return {
+          success: false,
+          error: "Your session has expired. Please sign in again."
         }
       }
 
