@@ -334,7 +334,7 @@ function AuthForm() {
     setError("")
     console.log("isdev", import.meta.env.DEV)
     try {
-      const { error } = await supabase.auth.signInWithOAuth({
+      const { data, error } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {
           redirectTo: import.meta.env.DEV
@@ -343,6 +343,11 @@ function AuthForm() {
           skipBrowserRedirect: false
         }
       })
+
+      // Set auth token immediately if we have it
+      if (data?.session?.access_token) {
+        window.__AUTH_TOKEN__ = data.session.access_token
+      }
 
       if (error) throw error
     } catch (error) {
@@ -489,6 +494,18 @@ function AppContent({ isInitialized }: { isInitialized: boolean }) {
 
   // Check auth state on mount
   useEffect(() => {
+    // First check if we have an existing session
+    const checkExistingSession = async () => {
+      const { data: { session } } = await supabase.auth.getSession()
+      if (session?.access_token) {
+        window.__AUTH_TOKEN__ = session.access_token
+        setUser(session.user)
+        setLoading(false)
+      }
+    }
+    
+    checkExistingSession()
+
     const {
       data: { subscription }
     } = supabase.auth.onAuthStateChange((event, session) => {
@@ -496,6 +513,11 @@ function AppContent({ isInitialized }: { isInitialized: boolean }) {
       // Set the auth token in the window object
       window.__AUTH_TOKEN__ = session?.access_token || null
       setLoading(false)
+
+      // If this is a SIGNED_IN event from OAuth, ensure we have the token
+      if (event === 'SIGNED_IN' && session?.access_token) {
+        window.__AUTH_TOKEN__ = session.access_token
+      }
     })
 
     return () => {
