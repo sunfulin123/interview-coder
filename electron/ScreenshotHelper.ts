@@ -22,14 +22,14 @@ export class ScreenshotHelper {
   constructor(view: "queue" | "solutions" | "debug" = "queue") {
     this.view = view
 
-    // Initialize directories
+    // 初始化截图目录
     this.screenshotDir = path.join(app.getPath("userData"), "screenshots")
     this.extraScreenshotDir = path.join(
       app.getPath("userData"),
       "extra_screenshots"
     )
 
-    // Create directories if they don't exist
+    // 确保目录存在
     if (!fs.existsSync(this.screenshotDir)) {
       fs.mkdirSync(this.screenshotDir)
     }
@@ -38,16 +38,12 @@ export class ScreenshotHelper {
     }
   }
 
-  public getView(): "queue" | "solutions" | "debug" {
-    return this.view
-  }
-
   public setView(view: "queue" | "solutions" | "debug"): void {
-    console.log("Setting view in ScreenshotHelper:", view)
+    console.log("正在设置截图视图为：", view)
     console.log(
-      "Current queues - Main:",
+      "当前队列状态 - 主队列:",
       this.screenshotQueue,
-      "Extra:",
+      "额外队列:",
       this.extraScreenshotQueue
     )
     this.view = view
@@ -58,26 +54,26 @@ export class ScreenshotHelper {
   }
 
   public getExtraScreenshotQueue(): string[] {
-    console.log("Getting extra screenshot queue:", this.extraScreenshotQueue)
+    console.log("正在获取额外截图队列：", this.extraScreenshotQueue)
     return this.extraScreenshotQueue
   }
 
   public clearQueues(): void {
-    // Clear screenshotQueue
+    // 清空主截图队列
     this.screenshotQueue.forEach((screenshotPath) => {
       fs.unlink(screenshotPath, (err) => {
         if (err)
-          console.error(`Error deleting screenshot at ${screenshotPath}:`, err)
+          console.error(`删除截图文件出错(路径: ${screenshotPath}):`, err)
       })
     })
     this.screenshotQueue = []
 
-    // Clear extraScreenshotQueue
+    // 清空额外截图队列
     this.extraScreenshotQueue.forEach((screenshotPath) => {
       fs.unlink(screenshotPath, (err) => {
         if (err)
           console.error(
-            `Error deleting extra screenshot at ${screenshotPath}:`,
+            `删除额外截图文件出错(路径: ${screenshotPath}):`,
             err
           )
       })
@@ -94,7 +90,7 @@ export class ScreenshotHelper {
   }
 
   private async captureScreenshotWindows(): Promise<Buffer> {
-    // Using PowerShell's native screenshot capability
+    // 使用PowerShell原生截图功能
     const tmpPath = path.join(app.getPath("temp"), `${uuidv4()}.png`)
     const script = `
       Add-Type -AssemblyName System.Windows.Forms
@@ -117,7 +113,7 @@ export class ScreenshotHelper {
     hideMainWindow: () => void,
     showMainWindow: () => void
   ): Promise<string> {
-    console.log("Taking screenshot in view:", this.view)
+    console.log("当前截图视图模式：", this.view)
     hideMainWindow()
     await new Promise((resolve) => setTimeout(resolve, 100))
 
@@ -133,7 +129,7 @@ export class ScreenshotHelper {
       if (this.view === "queue") {
         screenshotPath = path.join(this.screenshotDir, `${uuidv4()}.png`)
         await fs.promises.writeFile(screenshotPath, screenshotBuffer)
-        console.log("Adding screenshot to main queue:", screenshotPath)
+        console.log("添加到主队列的截图路径：", screenshotPath)
         this.screenshotQueue.push(screenshotPath)
         if (this.screenshotQueue.length > this.MAX_SCREENSHOTS) {
           const removedPath = this.screenshotQueue.shift()
@@ -141,19 +137,19 @@ export class ScreenshotHelper {
             try {
               await fs.promises.unlink(removedPath)
               console.log(
-                "Removed old screenshot from main queue:",
+                "已移除旧的主队列截图：",
                 removedPath
               )
             } catch (error) {
-              console.error("Error removing old screenshot:", error)
+              console.error("截图过程中发生错误：", error)
             }
           }
         }
       } else {
-        // In solutions view, only add to extra queue
+        // 解决方案视图下仅添加到额外队列
         screenshotPath = path.join(this.extraScreenshotDir, `${uuidv4()}.png`)
         await fs.promises.writeFile(screenshotPath, screenshotBuffer)
-        console.log("Adding screenshot to extra queue:", screenshotPath)
+        console.log("添加到额外队列的截图路径：", screenshotPath)
         this.extraScreenshotQueue.push(screenshotPath)
         if (this.extraScreenshotQueue.length > this.MAX_SCREENSHOTS) {
           const removedPath = this.extraScreenshotQueue.shift()
@@ -161,17 +157,17 @@ export class ScreenshotHelper {
             try {
               await fs.promises.unlink(removedPath)
               console.log(
-                "Removed old screenshot from extra queue:",
+                "已移除旧的额外队列截图：",
                 removedPath
               )
             } catch (error) {
-              console.error("Error removing old screenshot:", error)
+              console.error("截图过程中发生错误：", error)
             }
           }
         }
       }
     } catch (error) {
-      console.error("Screenshot error:", error)
+      console.error("截图过程中发生错误：", error)
       throw error
     } finally {
       await new Promise((resolve) => setTimeout(resolve, 50))
@@ -186,7 +182,7 @@ export class ScreenshotHelper {
       const data = await fs.promises.readFile(filepath)
       return `data:image/png;base64,${data.toString("base64")}`
     } catch (error) {
-      console.error("Error reading image:", error)
+      console.error("读取图片文件失败：", error)
       throw error
     }
   }
@@ -207,18 +203,18 @@ export class ScreenshotHelper {
       }
       return { success: true }
     } catch (error) {
-      console.error("Error deleting file:", error)
+      console.error("删除文件时出错：", error)
       return { success: false, error: error.message }
     }
   }
 
   public clearExtraScreenshotQueue(): void {
-    // Clear extraScreenshotQueue
+    // 清空额外截图队列
     this.extraScreenshotQueue.forEach((screenshotPath) => {
       fs.unlink(screenshotPath, (err) => {
         if (err)
           console.error(
-            `Error deleting extra screenshot at ${screenshotPath}:`,
+            `删除额外截图文件出错(路径: ${screenshotPath}):`,
             err
           )
       })

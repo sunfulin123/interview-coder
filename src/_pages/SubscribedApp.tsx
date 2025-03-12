@@ -82,18 +82,6 @@ const SubscribedApp: React.FC<SubscribedAppProps> = ({
       window.electronAPI.onSolutionStart(() => {
         setView("solutions")
       }),
-      window.electronAPI.onUnauthorized(() => {
-        queryClient.removeQueries({
-          queryKey: ["screenshots"]
-        })
-        queryClient.removeQueries({
-          queryKey: ["solution"]
-        })
-        queryClient.removeQueries({
-          queryKey: ["problem_statement"]
-        })
-        setView("queue")
-      }),
       window.electronAPI.onResetView(() => {
         queryClient.removeQueries({
           queryKey: ["screenshots"]

@@ -6,6 +6,7 @@ import { ScreenshotHelper } from "./ScreenshotHelper"
 import { ShortcutsHelper } from "./shortcuts"
 import { initAutoUpdater } from "./autoUpdater"
 import * as dotenv from "dotenv"
+import { AIConfig } from "./services/AIService"
 
 // Constants
 const isDev = !app.isPackaged
@@ -45,7 +46,8 @@ const state = {
     INITIAL_SOLUTION_ERROR: "solution-error",
     DEBUG_START: "debug-start",
     DEBUG_SUCCESS: "debug-success",
-    DEBUG_ERROR: "debug-error"
+    DEBUG_ERROR: "debug-error",
+    PARTIAL_RESPONSE: "partial-response"
   } as const
 }
 
@@ -68,6 +70,7 @@ export interface IProcessingHelperDeps {
   setHasDebugged: (value: boolean) => void
   getHasDebugged: () => boolean
   PROCESSING_EVENTS: typeof state.PROCESSING_EVENTS
+  getAIConfig: () => AIConfig
 }
 
 export interface IShortcutsHelperDeps {
@@ -125,7 +128,8 @@ function initializeHelpers() {
     deleteScreenshot,
     setHasDebugged,
     getHasDebugged,
-    PROCESSING_EVENTS: state.PROCESSING_EVENTS
+    PROCESSING_EVENTS: state.PROCESSING_EVENTS,
+    getAIConfig
   } as IProcessingHelperDeps)
   state.shortcutsHelper = new ShortcutsHelper({
     getMainWindow,
@@ -309,7 +313,7 @@ async function createWindow(): Promise<void> {
     return { action: "allow" }
   })
 
-  // Enhanced screen capture resistance
+  // 增强的屏幕捕获阻力
   state.mainWindow.setContentProtection(true)
 
   state.mainWindow.setVisibleOnAllWorkspaces(true, {
@@ -317,25 +321,25 @@ async function createWindow(): Promise<void> {
   })
   state.mainWindow.setAlwaysOnTop(true, "screen-saver", 1)
 
-  // Additional screen capture resistance settings
+  // 其他屏幕截图阻力设置
   if (process.platform === "darwin") {
-    // Prevent window from being captured in screenshots
+    // 防止窗口在屏幕截图中被捕获
     state.mainWindow.setHiddenInMissionControl(true)
     state.mainWindow.setWindowButtonVisibility(false)
     state.mainWindow.setBackgroundColor("#00000000")
 
-    // Prevent window from being included in window switcher
+    // 防止窗口包含在窗口切换器中
     state.mainWindow.setSkipTaskbar(true)
 
-    // Disable window shadow
+    // 禁用窗口阴影
     state.mainWindow.setHasShadow(false)
   }
 
-  // Prevent the window from being captured by screen recording
+  // 防止屏幕录制捕获窗口
   state.mainWindow.webContents.setBackgroundThrottling(false)
   state.mainWindow.webContents.setFrameRate(60)
 
-  // Set up window listeners
+  // 设置窗口监听器
   state.mainWindow.on("move", handleWindowMove)
   state.mainWindow.on("resize", handleWindowResize)
   state.mainWindow.on("closed", handleWindowClosed)
@@ -484,8 +488,20 @@ function loadEnvVariables() {
     VITE_SUPABASE_URL: process.env.VITE_SUPABASE_URL ? "exists" : "missing",
     VITE_SUPABASE_ANON_KEY: process.env.VITE_SUPABASE_ANON_KEY
       ? "exists"
-      : "missing"
+      : "missing",
+    OPENAI_API_URL: process.env.OPENAI_API_URL ? "exists" : "missing",
+    OPENAI_API_KEY: process.env.OPENAI_API_KEY ? "exists" : "missing",
+    OPENAI_MODEL: process.env.OPENAI_MODEL ? "exists" : "missing"
   })
+}
+
+// Add AIConfig getter function
+function getAIConfig(): AIConfig {
+  return {
+    apiUrl: process.env.OPENAI_API_URL || 'https://api.openai.com/v1/chat/completions',
+    apiKey: process.env.OPENAI_API_KEY || '',
+    model: process.env.OPENAI_MODEL || 'gpt-4-vision-preview'
+  };
 }
 
 // Initialize application

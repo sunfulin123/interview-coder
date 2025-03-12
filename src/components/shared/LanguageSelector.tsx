@@ -1,5 +1,4 @@
 import React from "react"
-import { supabase } from "../../lib/supabase"
 
 interface LanguageSelectorProps {
   currentLanguage: string
@@ -14,23 +13,7 @@ export const LanguageSelector: React.FC<LanguageSelectorProps> = ({
     e: React.ChangeEvent<HTMLSelectElement>
   ) => {
     const newLanguage = e.target.value
-    const {
-      data: { user }
-    } = await supabase.auth.getUser()
-
-    if (user) {
-      const { error } = await supabase
-        .from("subscriptions")
-        .update({ preferred_language: newLanguage })
-        .eq("user_id", user.id)
-
-      if (error) {
-        console.error("Error updating language:", error)
-      } else {
-        window.__LANGUAGE__ = newLanguage
-        setLanguage(newLanguage)
-      }
-    }
+    setLanguage(newLanguage)
   }
 
   return (
@@ -51,7 +34,6 @@ export const LanguageSelector: React.FC<LanguageSelectorProps> = ({
           <option value="kotlin">Kotlin</option>
           <option value="ruby">Ruby</option>
           <option value="sql">SQL</option>
-          <option value="r">R</option>
         </select>
       </div>
     </div>

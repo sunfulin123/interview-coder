@@ -6,6 +6,7 @@ import QueueCommands from "../components/Queue/QueueCommands"
 import { useToast } from "../contexts/toast"
 import { Screenshot } from "../types/screenshots"
 
+//获取截图
 async function fetchScreenshots(): Promise<Screenshot[]> {
   try {
     const existing = await window.electronAPI.getScreenshots()
@@ -108,13 +109,6 @@ const Queue: React.FC<QueueProps> = ({
           "No Screenshots",
           "There are no screenshots to process.",
           "neutral"
-        )
-      }),
-      window.electronAPI.onOutOfCredits(() => {
-        showToast(
-          "Out of Credits",
-          "You are out of credits. Please refill at https://www.interviewcoder.co/settings.",
-          "error"
         )
       })
     ]

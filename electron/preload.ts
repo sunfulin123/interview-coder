@@ -1,13 +1,9 @@
-console.log("Preload script starting...")
+console.log("预加载脚本启动中...")
 import { contextBridge, ipcRenderer } from "electron"
 const { shell } = require("electron")
 
-// Types for the exposed Electron API
+// 暴露给渲染进程的 Electron API 类型定义
 interface ElectronAPI {
-  openSubscriptionPortal: (authData: {
-    id: string
-    email: string
-  }) => Promise<{ success: boolean; error?: string }>
   updateContentDimensions: (dimensions: {
     width: number
     height: number
@@ -32,7 +28,6 @@ interface ElectronAPI {
   onProcessingNoScreenshots: (callback: () => void) => () => void
   onProblemExtracted: (callback: (data: any) => void) => () => void
   onSolutionSuccess: (callback: (data: any) => void) => () => void
-  onUnauthorized: (callback: () => void) => () => void
   onDebugError: (callback: (error: string) => void) => () => void
   openExternal: (url: string) => void
   toggleMainWindow: () => Promise<{ success: boolean; error?: string }>
@@ -43,44 +38,32 @@ interface ElectronAPI {
   triggerMoveRight: () => Promise<{ success: boolean; error?: string }>
   triggerMoveUp: () => Promise<{ success: boolean; error?: string }>
   triggerMoveDown: () => Promise<{ success: boolean; error?: string }>
-  onSubscriptionUpdated: (callback: () => void) => () => void
-  onSubscriptionPortalClosed: (callback: () => void) => () => void
-  startUpdate: () => Promise<{ success: boolean; error?: string }>
-  installUpdate: () => void
-  onUpdateAvailable: (callback: (info: any) => void) => () => void
-  onUpdateDownloaded: (callback: (info: any) => void) => () => void
-  decrementCredits: () => Promise<void>
-  onCreditsUpdated: (callback: (credits: number) => void) => () => void
-  onOutOfCredits: (callback: () => void) => () => void
   getPlatform: () => string
 }
 
 export const PROCESSING_EVENTS = {
-  //global states
+  //全局状态
   UNAUTHORIZED: "procesing-unauthorized",
   NO_SCREENSHOTS: "processing-no-screenshots",
   OUT_OF_CREDITS: "out-of-credits",
 
-  //states for generating the initial solution
+  //生成初始解决方案的状态
   INITIAL_START: "initial-start",
   PROBLEM_EXTRACTED: "problem-extracted",
   SOLUTION_SUCCESS: "solution-success",
   INITIAL_SOLUTION_ERROR: "solution-error",
   RESET: "reset",
 
-  //states for processing the debugging
+  //处理调试的状态
   DEBUG_START: "debug-start",
   DEBUG_SUCCESS: "debug-success",
   DEBUG_ERROR: "debug-error"
 } as const
 
-// At the top of the file
-console.log("Preload script is running")
+// 文件顶部
+console.log("预加载脚本正在运行")
 
 const electronAPI = {
-  openSubscriptionPortal: async (authData: { id: string; email: string }) => {
-    return ipcRenderer.invoke("open-subscription-portal", authData)
-  },
   openSettingsPortal: () => ipcRenderer.invoke("open-settings-portal"),
   updateContentDimensions: (dimensions: { width: number; height: number }) =>
     ipcRenderer.invoke("update-content-dimensions", dimensions),
@@ -89,17 +72,17 @@ const electronAPI = {
   deleteScreenshot: (path: string) =>
     ipcRenderer.invoke("delete-screenshot", path),
   toggleMainWindow: async () => {
-    console.log("toggleMainWindow called from preload")
+    console.log("从预加载脚本调用toggleMainWindow")
     try {
       const result = await ipcRenderer.invoke("toggle-window")
-      console.log("toggle-window result:", result)
+      console.log("toggle-window结果:", result)
       return result
     } catch (error) {
-      console.error("Error in toggleMainWindow:", error)
+      console.error("toggleMainWindow出错:", error)
       throw error
     }
   },
-  // Event listeners
+  // 事件监听器
   onScreenshotTaken: (
     callback: (data: { path: string; preview: string }) => void
   ) => {
@@ -163,13 +146,6 @@ const electronAPI = {
       ipcRenderer.removeListener(PROCESSING_EVENTS.NO_SCREENSHOTS, subscription)
     }
   },
-  onOutOfCredits: (callback: () => void) => {
-    const subscription = () => callback()
-    ipcRenderer.on(PROCESSING_EVENTS.OUT_OF_CREDITS, subscription)
-    return () => {
-      ipcRenderer.removeListener(PROCESSING_EVENTS.OUT_OF_CREDITS, subscription)
-    }
-  },
   onProblemExtracted: (callback: (data: any) => void) => {
     const subscription = (_: any, data: any) => callback(data)
     ipcRenderer.on(PROCESSING_EVENTS.PROBLEM_EXTRACTED, subscription)
@@ -190,13 +166,6 @@ const electronAPI = {
       )
     }
   },
-  onUnauthorized: (callback: () => void) => {
-    const subscription = () => callback()
-    ipcRenderer.on(PROCESSING_EVENTS.UNAUTHORIZED, subscription)
-    return () => {
-      ipcRenderer.removeListener(PROCESSING_EVENTS.UNAUTHORIZED, subscription)
-    }
-  },
   openExternal: (url: string) => shell.openExternal(url),
   triggerScreenshot: () => ipcRenderer.invoke("trigger-screenshot"),
   triggerProcessScreenshots: () =>
@@ -206,20 +175,6 @@ const electronAPI = {
   triggerMoveRight: () => ipcRenderer.invoke("trigger-move-right"),
   triggerMoveUp: () => ipcRenderer.invoke("trigger-move-up"),
   triggerMoveDown: () => ipcRenderer.invoke("trigger-move-down"),
-  onSubscriptionUpdated: (callback: () => void) => {
-    const subscription = () => callback()
-    ipcRenderer.on("subscription-updated", subscription)
-    return () => {
-      ipcRenderer.removeListener("subscription-updated", subscription)
-    }
-  },
-  onSubscriptionPortalClosed: (callback: () => void) => {
-    const subscription = () => callback()
-    ipcRenderer.on("subscription-portal-closed", subscription)
-    return () => {
-      ipcRenderer.removeListener("subscription-portal-closed", subscription)
-    }
-  },
   onReset: (callback: () => void) => {
     const subscription = () => callback()
     ipcRenderer.on(PROCESSING_EVENTS.RESET, subscription)
@@ -227,55 +182,31 @@ const electronAPI = {
       ipcRenderer.removeListener(PROCESSING_EVENTS.RESET, subscription)
     }
   },
-  startUpdate: () => ipcRenderer.invoke("start-update"),
-  installUpdate: () => ipcRenderer.invoke("install-update"),
-  onUpdateAvailable: (callback: (info: any) => void) => {
-    const subscription = (_: any, info: any) => callback(info)
-    ipcRenderer.on("update-available", subscription)
-    return () => {
-      ipcRenderer.removeListener("update-available", subscription)
-    }
-  },
-  onUpdateDownloaded: (callback: (info: any) => void) => {
-    const subscription = (_: any, info: any) => callback(info)
-    ipcRenderer.on("update-downloaded", subscription)
-    return () => {
-      ipcRenderer.removeListener("update-downloaded", subscription)
-    }
-  },
-  decrementCredits: () => ipcRenderer.invoke("decrement-credits"),
-  onCreditsUpdated: (callback: (credits: number) => void) => {
-    const subscription = (_event: any, credits: number) => callback(credits)
-    ipcRenderer.on("credits-updated", subscription)
-    return () => {
-      ipcRenderer.removeListener("credits-updated", subscription)
-    }
-  },
   getPlatform: () => process.platform
 } as ElectronAPI
 
 // Before exposing the API
 console.log(
-  "About to expose electronAPI with methods:",
+  "即将暴露electronAPI，包含以下方法:",
   Object.keys(electronAPI)
 )
 
-// Expose the API
+// 暴露API
 contextBridge.exposeInMainWorld("electronAPI", electronAPI)
 
-console.log("electronAPI exposed to window")
+console.log("electronAPI已暴露给窗口")
 
-// Add this focus restoration handler
+// 添加焦点恢复处理器
 ipcRenderer.on("restore-focus", () => {
-  // Try to focus the active element if it exists
+  // 尝试聚焦当前活动元素（如果存在）
   const activeElement = document.activeElement as HTMLElement
   if (activeElement && typeof activeElement.focus === "function") {
     activeElement.focus()
   }
 })
 
-// Expose protected methods that allow the renderer process to use
-// the ipcRenderer without exposing the entire object
+// 暴露受保护的方法，允许渲染进程使用ipcRenderer
+// 而不暴露整个对象
 contextBridge.exposeInMainWorld("electron", {
   ipcRenderer: {
     on: (channel: string, func: (...args: any[]) => void) => {
